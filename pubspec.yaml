@@ -30,6 +30,7 @@ dependencies:
   cupertino_icons: ^1.0.2
   routemaster: ^0.9.5
   animations: ^2.0.1
+  dio: ^4.0.0
 
 dev_dependencies:
   flutter_test:
