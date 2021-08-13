@@ -1,7 +1,11 @@
 import 'package:animations/animations.dart';
 import 'package:flutter/material.dart';
-import 'package:news_app/pages/favorite_page.dart';
-import 'package:news_app/pages/feed_page.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:news_app/local_storage/client.dart';
+import 'package:news_app/state_management/article_cubit.dart';
+import 'package:news_app/state_management/loading_more_state_cubit.dart';
+import 'package:news_app/user_interface/pages/favorite_page.dart';
+import 'package:news_app/user_interface/pages/feed_page.dart';
 
 class HomePage extends StatefulWidget {
   @override
@@ -37,6 +41,7 @@ class _HomePageState extends State<HomePage> {
         clipBehavior: Clip.hardEdge,
         child: BottomNavigationBar(
           elevation: 0,
+          backgroundColor: Colors.white,
           currentIndex: selectedTab,
           onTap: (int value) {
             setState(() {
@@ -67,14 +72,38 @@ class _HomePageState extends State<HomePage> {
   }
 
   getPage() {
+
+
     switch (selectedTab) {
       case 0:
-        return FeedPage();
+        return MultiBlocProvider(
+          key: ValueKey<String>("FeedPage"),
+          providers: [
+            BlocProvider(
+              create: (context) => ArticleCubit()..loadArticles(),
+            ),
+            BlocProvider(
+              create: (context) => LoadingMoreStateCubit(),
+            ),
+          ],
+          child: FeedPage(),
+        );
       case 1:
-        return FavoritePage();
+        return MultiBlocProvider(
+          key: ValueKey<String>("FavoritePage"),
+          providers: [
+            BlocProvider(
+              create: (context) => ArticleCubit()
+                ..loadArticles(
+                  favoriteIdList: favoriteArticleBox.keys.toList(),
+                ),
+            ),
+            BlocProvider(
+              create: (context) => LoadingMoreStateCubit(),
+            ),
+          ],
+          child: FavoritePage(),
+        );
     }
   }
 }
-
-
-

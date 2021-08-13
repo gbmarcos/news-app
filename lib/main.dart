@@ -2,11 +2,20 @@ import 'dart:ui';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
-import 'package:news_app/pages/article_detail_page.dart';
-import 'package:news_app/pages/home_page.dart';
+import 'package:hive/hive.dart';
+import 'package:news_app/local_storage/client.dart';
+import 'package:news_app/user_interface/pages/article_detail_page.dart';
+import 'package:news_app/user_interface/pages/home_page.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:routemaster/routemaster.dart';
 
-void main() => runApp(MyApp());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  var directory =await getApplicationDocumentsDirectory();
+  Hive.init(directory.path);
+  await Hive.openBox(FAVORITE_ARTICLE_BOX_NAME);
+  runApp(MyApp());
+}
 
 final routes = RouteMap(
   routes: {
@@ -19,13 +28,11 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp.router(
-      theme: ThemeData(primaryColor: Color(0xFF0C39AC)),
+      theme: ThemeData(
+        primaryColor: Color(0xFF0C39AC),
+      ),
       routerDelegate: RoutemasterDelegate(routesBuilder: (_) => routes),
       routeInformationParser: RoutemasterParser(),
     );
   }
 }
-
-
-
-

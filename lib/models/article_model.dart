@@ -8,7 +8,7 @@ class ArticleModel {
   String? imageUrl;
   String? newsSite;
   String? summary;
-  String? publishedAt;
+  DateTime? publishedAt;
 
   ArticleModel({
     this.id,
@@ -28,18 +28,18 @@ class ArticleModel {
     imageUrl = json["imageUrl"]?.toString();
     newsSite = json["newsSite"]?.toString();
     summary = json["summary"]?.toString();
-    publishedAt = json["publishedAt"]?.toString();
+    publishedAt = DateTime.tryParse(json["publishedAt"]) ;
   }
   Map<String, dynamic> toJson() {
     final Map<String, dynamic> data = Map<String, dynamic>();
     data["id"] = id;
-    data["featured"] = featured;
+    data["featured"] = featured??false?1:0;
     data["title"] = title;
     data["url"] = url;
     data["imageUrl"] = imageUrl;
     data["newsSite"] = newsSite;
     data["summary"] = summary;
-    data["publishedAt"] = publishedAt;
+    data["publishedAt"] = publishedAt?.toIso8601String();
     return data;
   }
 }
