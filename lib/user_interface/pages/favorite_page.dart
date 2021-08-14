@@ -1,7 +1,11 @@
-import 'package:animations/animations.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
+
 import 'package:flutter_shimmer/flutter_shimmer.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:animations/animations.dart';
+import 'package:implicitly_animated_reorderable_list/implicitly_animated_reorderable_list.dart';
+import 'package:implicitly_animated_reorderable_list/transitions.dart';
+
 import 'package:news_app/local_storage/client.dart';
 import 'package:news_app/models/article_model.dart';
 import 'package:news_app/state_management/article_cubit.dart';
@@ -19,7 +23,7 @@ class _FavoritePageState extends State<FavoritePage> {
   late Duration transitionDuration;
   late Curve transitionCurve;
   late TextEditingController searchController;
-  String lastContainsQueryParameter = "";
+  String lastSearchQuery = "";
 
   @override
   void initState() {
@@ -98,8 +102,8 @@ class _FavoritePageState extends State<FavoritePage> {
                     if (searching) {
                       searchController.clear();
                       FocusScope.of(context).requestFocus(new FocusNode());
-                      if (lastContainsQueryParameter.isNotEmpty) {
-                        lastContainsQueryParameter = "";
+                      if (lastSearchQuery.isNotEmpty) {
+                        lastSearchQuery = "";
                         reloadArticles();
                       }
                     }
@@ -134,7 +138,7 @@ class _FavoritePageState extends State<FavoritePage> {
                     style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 14),
                     textInputAction: TextInputAction.search,
                     onSubmitted: (contains) {
-                      lastContainsQueryParameter = contains;
+                      lastSearchQuery = contains;
                       reloadArticles();
                     },
                     decoration: InputDecoration(
@@ -180,83 +184,11 @@ class _FavoritePageState extends State<FavoritePage> {
                             switchInCurve: transitionCurve,
                             switchOutCurve: transitionCurve,
                             child: searching
-                                ? EmptyListWidget(
-                                    key: ValueKey<String>(emptyListWidgetKey),
-                                    svgPath: "assets/search_icon.svg",
-                                    text: Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Text(
-                                          "There are no results for this search.",
-                                          style: TextStyle(
-                                              color: Color(0xFF1F2937),
-                                              fontSize: 14,
-                                              fontWeight: FontWeight.bold),
-                                        ),
-                                        Divider(
-                                          color: Colors.transparent,
-                                        ),
-                                        Text(
-                                          " Try searching another word.",
-                                          style: TextStyle(
-                                            color: Color(0xFF1F2937),
-                                            fontSize: 14,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  )
-                                : EmptyListWidget(
-                                    key: ValueKey<String>(emptyListWidgetKey),
-                                    svgPath: "assets/favorite_icon.svg",
-                                    text: Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Text(
-                                          "You don't have favorites yet.",
-                                          style: TextStyle(
-                                              color: Color(0xFF1F2937),
-                                              fontSize: 14,
-                                              fontWeight: FontWeight.bold),
-                                        ),
-                                        Divider(
-                                          color: Colors.transparent,
-                                        ),
-                                        RichText(
-                                          textScaleFactor: 1.1,
-                                          text: TextSpan(
-                                            children: [
-                                              TextSpan(
-                                                text: "Tap on the  ",
-                                                style: TextStyle(
-                                                  color: Color(0xFF1F2937),
-                                                  fontSize: 14,
-                                                ),
-                                              ),
-                                              WidgetSpan(
-                                                child: Icon(
-                                                  Icons.favorite_border,
-                                                  size: 20,
-                                                  color: Theme.of(context).primaryColor,
-                                                ),
-                                              ),
-                                              TextSpan(
-                                                text: "  to mark an article as a favortite.",
-                                                style: TextStyle(
-                                                  color: Color(0xFF1F2937),
-                                                  fontSize: 14,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
+                                ? emptySearchListIndicator(emptyListWidgetKey)
+                                : emptyFavoriteListIndicator(emptyListWidgetKey),
                           ),
                         );
                       }
-//todo> explain why itemCount: articleList.length+1
                       return Column(
                         children: [
                           Align(
@@ -277,23 +209,51 @@ class _FavoritePageState extends State<FavoritePage> {
                           ),
                           Expanded(
                             child: NotificationListener<ScrollUpdateNotification>(
-                              child: ListView.builder(
-                                padding: EdgeInsets.only(top: 10, bottom: 60),
+                              child: ImplicitlyAnimatedReorderableList<ArticleModel>(
+                                areItemsTheSame: (oldItem, newItem) => oldItem.id == newItem.id,
+                                // ArticleModel(id: -1) is addend to build the loading-more indicator widget at the end od the list
+                                items: articleList + [ArticleModel(id: -1)],
+                                onReorderFinished: (item, from, to, newItems) {},
+                                padding: EdgeInsets.only(top: 16, bottom: 60),
                                 physics: AlwaysScrollableScrollPhysics(),
-                                itemCount: articleList.length + 1,
-                                itemBuilder: (context, index) {
-                                  if (index == articleList.length) {
-                                    return loadingWidget();
+                                itemBuilder: (
+                                  context,
+                                  animation,
+                                  article,
+                                  i,
+                                ) {
+                                  // loading-more indicator widget is built if the id is -1
+                                  if (article.id == -1) {
+                                    return Reorderable(
+                                      key: ValueKey<int>(article.id!),
+                                      child: SizeFadeTransition(
+                                        animation: animation,
+                                        sizeFraction: 0.7,
+                                        curve: Curves.easeInOut,
+                                        child: loadingWidget(),
+                                      ),
+                                    );
                                   }
-                                  return ArticleCard(
-                                    article: articleList[index],
+                                  return Reorderable(
+                                    key: ValueKey<int>(article.id!),
+                                    child: SizeFadeTransition(
+                                      animation: animation,
+                                      sizeFraction: 0.7,
+                                      curve: Curves.easeInOut,
+                                      child: ArticleCard(
+                                        article: article,
+                                        customizedFavoriteChangeFunction: () {
+                                          context.read<ArticleCubit>().removeArticle(article.id!);
+                                        },
+                                      ),
+                                    ),
                                   );
                                 },
                               ),
                               onNotification: (ScrollUpdateNotification notification) {
-                                //para cargar más eventos al llegar al final de la lista
+                                // loadMoreArticles() function is called if the Scrollable has less than 40 pixels left to reach the end
                                 var metrics = notification.metrics;
-                                if (metrics.atEdge && metrics.pixels != 0) {
+                                if (metrics.extentAfter < 40 && metrics.pixels != 0) {
                                   loadMoreArticles();
                                 }
                                 return true;
@@ -312,7 +272,7 @@ class _FavoritePageState extends State<FavoritePage> {
               ),
               onRefresh: () async {
                 if (searching) {
-                  searchController.text = lastContainsQueryParameter;
+                  searchController.text = lastSearchQuery;
                 }
                 await reloadArticles();
               },
@@ -323,10 +283,21 @@ class _FavoritePageState extends State<FavoritePage> {
     );
   }
 
+  // loading indicator displayed at de end of the list when loadMoreArticles() is called
   Widget loadingWidget() {
     return BlocBuilder<LoadingMoreStateCubit, bool>(
       builder: (context, loading) {
-        return loading ? ListTileShimmer() : Container();
+        return loading
+            ? ProfileShimmer(
+                isDisabledAvatar: true,
+                colors: [
+                  Theme.of(context).primaryColor.withOpacity(0.5),
+                  Theme.of(context).primaryColor.withOpacity(0.3),
+                  Theme.of(context).primaryColor.withOpacity(0.1),
+                ],
+                hasCustomColors: true,
+              )
+            : Container();
       },
     );
   }
@@ -335,7 +306,7 @@ class _FavoritePageState extends State<FavoritePage> {
     var articleCubit = context.read<ArticleCubit>();
     articleCubit.clear();
     await articleCubit.loadArticles(
-      contains: lastContainsQueryParameter,
+      contains: lastSearchQuery,
       favoriteIdList: favoriteArticleBox.keys.toList(),
     );
   }
@@ -345,10 +316,85 @@ class _FavoritePageState extends State<FavoritePage> {
     if (!loadingMoreStateCubit.state) {
       loadingMoreStateCubit.startLoading();
       await context.read<ArticleCubit>().loadMoreArticles(
-            contains: lastContainsQueryParameter,
+            contains: lastSearchQuery,
             favoriteIdList: favoriteArticleBox.keys.toList(),
           );
       loadingMoreStateCubit.finishLoading();
     }
+  }
+
+  //widget displayed when search result is empty
+  Widget emptySearchListIndicator(String emptyListWidgetKey) {
+    return EmptyListWidget(
+      key: ValueKey<String>(emptyListWidgetKey),
+      svgPath: "assets/search_icon.svg",
+      text: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            "There are no results for this search.",
+            style: TextStyle(color: Color(0xFF1F2937), fontSize: 14, fontWeight: FontWeight.bold),
+          ),
+          Divider(
+            color: Colors.transparent,
+          ),
+          Text(
+            " Try searching another word.",
+            style: TextStyle(
+              color: Color(0xFF1F2937),
+              fontSize: 14,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  //widget displayed when favorite list is empty
+  Widget emptyFavoriteListIndicator(String emptyListWidgetKey) {
+    return EmptyListWidget(
+      key: ValueKey<String>(emptyListWidgetKey),
+      svgPath: "assets/favorite_icon.svg",
+      text: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            "You don't have favorites yet.",
+            style: TextStyle(color: Color(0xFF1F2937), fontSize: 14, fontWeight: FontWeight.bold),
+          ),
+          Divider(
+            color: Colors.transparent,
+          ),
+          RichText(
+            textScaleFactor: 1.1,
+            text: TextSpan(
+              children: [
+                TextSpan(
+                  text: "Tap on the  ",
+                  style: TextStyle(
+                    color: Color(0xFF1F2937),
+                    fontSize: 14,
+                  ),
+                ),
+                WidgetSpan(
+                  child: Icon(
+                    Icons.favorite_border,
+                    size: 20,
+                    color: Theme.of(context).primaryColor,
+                  ),
+                ),
+                TextSpan(
+                  text: "  to mark an article as a favortite.",
+                  style: TextStyle(
+                    color: Color(0xFF1F2937),
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

@@ -1,8 +1,10 @@
-import 'package:animations/animations.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+
+import 'package:animations/animations.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_shimmer/flutter_shimmer.dart';
+
 import 'package:news_app/models/article_model.dart';
 import 'package:news_app/state_management/article_cubit.dart';
 import 'package:news_app/state_management/loading_more_state_cubit.dart';
@@ -19,7 +21,7 @@ class _FeedPageState extends State<FeedPage> {
   late Duration transitionDuration;
   late Curve transitionCurve;
   late TextEditingController searchController;
-  String lastContainsQueryParameter = "";
+  String lastSearchQuery = "";
 
   @override
   void initState() {
@@ -98,8 +100,8 @@ class _FeedPageState extends State<FeedPage> {
                     if (searching) {
                       searchController.clear();
                       FocusScope.of(context).requestFocus(new FocusNode());
-                      if (lastContainsQueryParameter.isNotEmpty) {
-                        lastContainsQueryParameter = "";
+                      if (lastSearchQuery.isNotEmpty) {
+                        lastSearchQuery = "";
                         reloadArticles();
                       }
                     }
@@ -134,7 +136,7 @@ class _FeedPageState extends State<FeedPage> {
                     style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 14),
                     textInputAction: TextInputAction.search,
                     onSubmitted: (contains) {
-                      lastContainsQueryParameter = contains;
+                      lastSearchQuery = contains;
                       reloadArticles();
                     },
                     decoration: InputDecoration(
@@ -180,45 +182,12 @@ class _FeedPageState extends State<FeedPage> {
                             switchInCurve: transitionCurve,
                             switchOutCurve: transitionCurve,
                             child: searching
-                                ? EmptyListWidget(
-                                    key: ValueKey<String>(emptyListWidgetKey),
-                                    svgPath: "assets/search_icon.svg",
-                                    text: Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Text(
-                                          "There are no results for this search.",
-                                          style: TextStyle(
-                                              color: Color(0xFF1F2937),
-                                              fontSize: 14,
-                                              fontWeight: FontWeight.bold),
-                                        ),
-                                        Divider(
-                                          color: Colors.transparent,
-                                        ),
-                                        Text(
-                                          " Try searching another word.",
-                                          style: TextStyle(
-                                            color: Color(0xFF1F2937),
-                                            fontSize: 14,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  )
-                                : EmptyListWidget(
-                                    key: ValueKey<String>(emptyListWidgetKey),
-                                    svgPath: "assets/news_icon.svg",
-                                    text: Text(
-                                      "There is no news yet",
-                                      style:
-                                          TextStyle(color: Color(0xFF1F2937), fontSize: 14),
-                                    ),
-                                  ),
+                                ? emptySearchListIndicator(emptyListWidgetKey)
+                                : emptyArticleListIndicator(emptyListWidgetKey),
                           ),
                         );
                       }
-//todo> explain why itemCount: articleList.length+1
+
                       return Column(
                         children: [
                           Align(
@@ -242,8 +211,10 @@ class _FeedPageState extends State<FeedPage> {
                               child: ListView.builder(
                                 padding: EdgeInsets.only(top: 10, bottom: 60),
                                 physics: AlwaysScrollableScrollPhysics(),
+                                // itemCount = articleList.length + 1 to build the loading-more indicator widget at the end of the list
                                 itemCount: articleList.length + 1,
                                 itemBuilder: (context, index) {
+                                  // loading-more indicator widget is built at the last index
                                   if (index == articleList.length) {
                                     return loadingWidget();
                                   }
@@ -255,7 +226,7 @@ class _FeedPageState extends State<FeedPage> {
                               onNotification: (ScrollUpdateNotification notification) {
                                 //para cargar más eventos al llegar al final de la lista
                                 var metrics = notification.metrics;
-                                if (metrics.atEdge && metrics.pixels != 0) {
+                                if (metrics.extentAfter < 40 && metrics.pixels != 0) {
                                   loadMoreArticles();
                                 }
                                 return true;
@@ -274,7 +245,7 @@ class _FeedPageState extends State<FeedPage> {
               ),
               onRefresh: () async {
                 if (searching) {
-                  searchController.text = lastContainsQueryParameter;
+                  searchController.text = lastSearchQuery;
                 }
                 await reloadArticles();
               },
@@ -285,10 +256,21 @@ class _FeedPageState extends State<FeedPage> {
     );
   }
 
+  // loading indicator displayed at de end of the list when loadMoreArticles() is called
   Widget loadingWidget() {
     return BlocBuilder<LoadingMoreStateCubit, bool>(
       builder: (context, loading) {
-        return loading ? ListTileShimmer() : Container();
+        return loading
+            ? ProfileShimmer(
+                isDisabledAvatar: true,
+                colors: [
+                  Theme.of(context).primaryColor.withOpacity(0.5),
+                  Theme.of(context).primaryColor.withOpacity(0.3),
+                  Theme.of(context).primaryColor.withOpacity(0.1),
+                ],
+                hasCustomColors: true,
+              )
+            : Container();
       },
     );
   }
@@ -297,7 +279,7 @@ class _FeedPageState extends State<FeedPage> {
     var articleCubit = context.read<ArticleCubit>();
     articleCubit.clear();
     await articleCubit.loadArticles(
-      contains: lastContainsQueryParameter,
+      contains: lastSearchQuery,
     );
   }
 
@@ -306,9 +288,48 @@ class _FeedPageState extends State<FeedPage> {
     if (!loadingMoreStateCubit.state) {
       loadingMoreStateCubit.startLoading();
       await context.read<ArticleCubit>().loadMoreArticles(
-        contains: lastContainsQueryParameter,
-      );
+            contains: lastSearchQuery,
+          );
       loadingMoreStateCubit.finishLoading();
     }
+  }
+
+  //widget displayed when search result is empty
+  Widget emptySearchListIndicator(String emptyListWidgetKey) {
+    return EmptyListWidget(
+      key: ValueKey<String>(emptyListWidgetKey),
+      svgPath: "assets/search_icon.svg",
+      text: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            "There are no results for this search.",
+            style: TextStyle(color: Color(0xFF1F2937), fontSize: 14, fontWeight: FontWeight.bold),
+          ),
+          Divider(
+            color: Colors.transparent,
+          ),
+          Text(
+            " Try searching another word.",
+            style: TextStyle(
+              color: Color(0xFF1F2937),
+              fontSize: 14,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  //widget displayed when article list is empty
+  Widget emptyArticleListIndicator(String emptyListWidgetKey) {
+    return EmptyListWidget(
+      key: ValueKey<String>(emptyListWidgetKey),
+      svgPath: "assets/news_icon.svg",
+      text: Text(
+        "There is no news yet",
+        style: TextStyle(color: Color(0xFF1F2937), fontSize: 14),
+      ),
+    );
   }
 }

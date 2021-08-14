@@ -72,8 +72,6 @@ class _HomePageState extends State<HomePage> {
   }
 
   getPage() {
-
-
     switch (selectedTab) {
       case 0:
         return MultiBlocProvider(

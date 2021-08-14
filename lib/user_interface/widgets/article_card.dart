@@ -1,6 +1,7 @@
 import 'dart:ui';
 
 import 'package:animations/animations.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/painting.dart';
@@ -8,11 +9,14 @@ import 'package:intl/intl.dart';
 import 'package:news_app/local_storage/client.dart';
 import 'package:news_app/models/article_model.dart';
 import 'package:assorted_layout_widgets/assorted_layout_widgets.dart';
+import 'package:news_app/user_interface/pages/article_detail_page.dart';
 
 class ArticleCard extends StatefulWidget {
   final ArticleModel article;
+  final Function? customizedFavoriteChangeFunction;
 
-  const ArticleCard({Key? key, required this.article}) : super(key: key);
+  const ArticleCard({Key? key, required this.article, this.customizedFavoriteChangeFunction})
+      : super(key: key);
 
   @override
   _ArticleCardState createState() => _ArticleCardState();
@@ -25,13 +29,30 @@ class _ArticleCardState extends State<ArticleCard> {
       elevation: 5,
       clipBehavior: Clip.hardEdge,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      margin: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+      margin: EdgeInsets.only(bottom: 16, left: 16, right: 16),
       child: ColumnSuper(
         innerDistance: -20,
         children: [
-          FadeInImage.assetNetwork(
-            placeholder: "assets/placeholder_2.jpg",
-            image: /*widget.article.imageUrl ??*/ "http",
+          InkWell(
+            child: CachedNetworkImage(
+              imageUrl: widget.article.imageUrl??"",
+              placeholder: (context, url) {
+               return Image.asset("assets/placeholder_2.jpg");
+              },
+            ),
+            onTap: () async {
+              await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ArticleDetailPage(
+                      article: widget.article,
+                      additionalFavoriteChangeFunction: widget.customizedFavoriteChangeFunction,
+                    ),
+                  ));
+              if (mounted) {
+                setState(() {});
+              }
+            },
           ),
           Material(
             elevation: 10,
@@ -50,10 +71,6 @@ class _ArticleCardState extends State<ArticleCard> {
                       fontSize: 16,
                       fontWeight: FontWeight.w500,
                     ),
-                  ),
-                  Divider(
-                    color: Colors.transparent,
-                    height: 10,
                   ),
                   Row(
                     children: [
@@ -119,6 +136,8 @@ class _ArticleCardState extends State<ArticleCard> {
           favoriteArticleBox.put(articleId, "");
         }
         setState(() {});
+
+        widget.customizedFavoriteChangeFunction?.call();
       },
     );
   }

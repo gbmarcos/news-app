@@ -1,6 +1,4 @@
-
 class ArticleModel {
-
   int? id;
   bool? featured;
   String? title;
@@ -20,6 +18,7 @@ class ArticleModel {
     this.summary,
     this.publishedAt,
   });
+
   ArticleModel.fromJson(Map<String, dynamic> json) {
     id = json["id"]?.toInt();
     featured = json["featured"];
@@ -28,12 +27,13 @@ class ArticleModel {
     imageUrl = json["imageUrl"]?.toString();
     newsSite = json["newsSite"]?.toString();
     summary = json["summary"]?.toString();
-    publishedAt = DateTime.tryParse(json["publishedAt"]) ;
+    publishedAt = DateTime.tryParse(json["publishedAt"]);
   }
+
   Map<String, dynamic> toJson() {
     final Map<String, dynamic> data = Map<String, dynamic>();
     data["id"] = id;
-    data["featured"] = featured??false?1:0;
+    data["featured"] = featured ?? false ? 1 : 0;
     data["title"] = title;
     data["url"] = url;
     data["imageUrl"] = imageUrl;

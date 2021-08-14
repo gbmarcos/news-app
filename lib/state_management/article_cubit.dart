@@ -3,19 +3,22 @@ import 'package:news_app/api_service/client.dart';
 import 'package:news_app/api_service/repositories/article_repository.dart';
 import 'package:news_app/models/article_model.dart';
 
+
 class ArticleCubit extends Cubit<List<ArticleModel>?> {
+
+  //to perform lazy loading
   final int limit = 10;
 
   ArticleCubit() : super(null);
 
   Future<void> loadArticles({String? contains, List? favoriteIdList}) async {
-    //todo: explain
+    //if favoriteIdList is a not null empty list, ArticleCubit emits a empty ArticleModel list
     if (favoriteIdList != null && favoriteIdList.isEmpty) {
       emit(<ArticleModel>[]);
       return;
     }
 
-    Map? response = await ArticleRepository(dioClient: dioClient).getArticles(
+    List<ArticleModel>? response = await ArticleRepository(dioClient: dioClient).getArticles(
       start: 0,
       limit: limit,
       contains: contains,
@@ -23,12 +26,13 @@ class ArticleCubit extends Cubit<List<ArticleModel>?> {
     );
 
     if (response != null) {
-      emit((response["data"] as List<ArticleModel>?));
+      emit(response);
     }
   }
 
   Future<void> loadMoreArticles({String? contains, List? favoriteIdList}) async {
-    //todo: explain
+
+    //if favoriteIdList is a not null empty list, ArticleCubit emits a empty ArticleModel list
     if (favoriteIdList != null && favoriteIdList.isEmpty) {
       emit(<ArticleModel>[]);
       return;
@@ -36,7 +40,7 @@ class ArticleCubit extends Cubit<List<ArticleModel>?> {
 
     int start = state?.length ?? 0;
     print("loading more");
-    Map? response = await ArticleRepository(dioClient: dioClient).getArticles(
+    List<ArticleModel>? response = await ArticleRepository(dioClient: dioClient).getArticles(
       start: start,
       limit: limit,
       contains: contains,
@@ -44,12 +48,17 @@ class ArticleCubit extends Cubit<List<ArticleModel>?> {
     );
     if (response != null) {
       if (state != null) {
-        List<ArticleModel> newState = state! + (response["data"] as List<ArticleModel>?)!;
+        List<ArticleModel> newState = state! + response;
         emit(newState);
       } else {
-        emit((response["data"] as List<ArticleModel>?));
+        emit(response);
       }
     }
+  }
+
+  void removeArticle(int id){
+    var newState = state?.where((article) => article.id!=id).toList();
+    emit(newState);
   }
 
   clear() {
