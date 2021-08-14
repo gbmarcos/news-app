@@ -30,6 +30,7 @@ final routes = RouteMap(
 class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+
     preloadAssetsImages(context);
 
     return MaterialApp.router(
